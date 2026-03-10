@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Plaza Capibara - Noches de Pucallpa</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div id="login-overlay">
+        <div class="login-box">
+            <h2>¡Bienvenido a la Plaza!</h2>
+            <p>¿Cómo te llamas, capibara?</p>
+            <input type="text" id="username-input" placeholder="Tu nombre..." maxlength="15">
+            <button id="join-btn">Entrar al juego</button>
+        </div>
+    </div>
+
+    <div id="ui-overlay" style="display: none;">
+
+        <div id="city-title">🌴 CAPI CITY 🌴</div>
+
+        <div id="minimap-container">
+            <div id="minimap-city-name">RADAR - CAPI CITY</div>
+            <!-- El minimapa se dibuja por código en el canvas principal o aquí -->
+        </div>
+
+        <div id="instructions">Usa los <b>Controles</b> o <b>W A S D</b> para caminar.
+        </div>
+
+        <div id="game-notifications"></div>
+
+        <div id="chat-box">
+            <input type="text" id="chat-input" placeholder="Escribe tu chisme aquí..." maxlength="40" autocomplete="off"
+                inputmode="text">
+            <button id="send-btn">Hablar</button>
+        </div>
+
+        <!-- Banner de Planes (Tinder Style) -->
+        <div id="planes-banner">
+            <div id="plan-card-container">
+                <!-- Se llena dinámicamente -->
+            </div>
+        </div>
+
+        <!-- Botón Sidebar Minijuegos -->
+        <button id="games-sidebar-btn">🎮</button>
+
+        <!-- Sidebar de Minijuegos -->
+        <div id="games-sidebar">
+            <h3 class="sidebar-title">🕹️ Minijuegos</h3>
+
+            <div class="game-item" onclick="seleccionarJuego('battleground')">
+                <span class="game-icon">⚔️</span>
+                <h4>Battle Ground</h4>
+                <p>Sobrevive en una batalla épica de capibaras.</p>
+            </div>
+
+            <div class="game-item" onclick="seleccionarJuego('1vs1')">
+                <span class="game-icon">🥊</span>
+                <h4>Capibara 1 vs 1</h4>
+                <p>Duelo directo por la supremacía de la selva.</p>
+            </div>
+
+            <div class="game-item" onclick="seleccionarJuego('plataformas')">
+                <span class="game-icon">🍄</span>
+                <h4>Capibara World</h4>
+                <p>Salta y corre al estilo Mario Bros.</p>
+            </div>
+
+            <div class="game-item" onclick="seleccionarJuego('voley')">
+                <span class="game-icon">🏐</span>
+                <h4>Voley Selva</h4>
+                <p>¡El deporte favorito de Pucallpa!</p>
+            </div>
+        </div>
+
+        <!-- Widget de Música -->
+        <div id="music-widget">
+            <button id="music-toggle">🎵 Música: OFF</button>
+            <span id="now-playing" style="display:none">Pucallpa Chill Vibe</span>
+        </div>
+    </div>
+
+    <!-- Muro de Planes (Modal Estilo Tinder) - ELIMINADO O CONVERTIDO EN BANNER -->
+    <div id="planes-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <div class="planes-header">
+                <h2>✨ Muro de Planes</h2>
+                <p>¿Qué armamos hoy?</p>
+            </div>
+            <button id="create-plan-btn">+ Crear un Plan</button>
+        </div>
+    </div>
+
+    <!-- Modal para Crear Plan -->
+    <div id="create-plan-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-create-btn">&times;</span>
+            <h3>✨ Crear nuevo plan</h3>
+            <input type="text" id="plan-title" placeholder="¿Qué vamos a hacer?">
+            <input type="text" id="plan-img" placeholder="Link de imagen (Poster vertical)">
+            <textarea id="plan-desc" placeholder="Detalles (cuándo, dónde, cuántos...)"></textarea>
+            <button id="submit-plan-btn">Publicar Plan</button>
+        </div>
+    </div>
+
+    <!-- Modal de Encuesta -->
+    <div id="poll-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-poll-btn"
+                style="position:absolute; top:20px; right:25px; font-size:30px; cursor:pointer;">&times;</span>
+            <div id="polls-list-wrapper" style="max-height: 300px; overflow-y: auto;">
+                <!-- Aquí se renderizan las encuestas dinámicamente -->
+            </div>
+            <button id="open-create-poll-btn">+ Crear mi propia encuesta</button>
+        </div>
+    </div>
+
+    <!-- Modal para Crear Encuesta -->
+    <div id="create-poll-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-create-poll-btn"
+                style="position:absolute; top:20px; right:25px; font-size:30px; cursor:pointer;">&times;</span>
+            <h3 style="color:#bd93f9; margin-bottom:15px;">📊 Nueva Encuesta</h3>
+            <input type="text" id="poll-q-input" placeholder="Pregunta (ej: ¿Cuál es mejor?)">
+            <input type="text" id="poll-opt1-input" placeholder="Opción 1">
+            <input type="text" id="poll-opt2-input" placeholder="Opción 2">
+            <button id="submit-poll-btn">Lanzar Encuesta</button>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas">
+        <audio id="bg-music" loop src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"></audio>
+    </canvas>
+
+    <div id="joystick-container" style="display: none;">
+        <div id="joystick-base">
+            <div id="joystick-stick"></div>
+        </div>
+        <button id="btn-interact">ABRIR</button>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="game.js"></script>
+</body>
+
+</html>
