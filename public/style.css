@@ -926,3 +926,41 @@ html {
         transform: translateY(-20px);
     }
 }
+
+/* --- Ajustes para Móvil --- */
+@media (max-width: 600px) {
+    .login-box {
+        width: 90%;
+        padding: 20px;
+    }
+    #character-selector {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .char-option {
+        width: 70px;
+        padding: 5px;
+    }
+    .char-preview {
+        font-size: 24px;
+    }
+    #boost-container {
+        bottom: 130px !important; /* Arriba del chat y joystick */
+        width: 150px !important;
+    }
+    #joystick-container {
+        transform: scale(0.85);
+        transform-origin: bottom left;
+        bottom: 0px;
+        left: 0px;
+    }
+    #btn-interact {
+        font-size: 16px;
+        padding: 15px;
+        right: 15px;
+        bottom: 15px;
+    }
+    #chat-wrapper {
+        bottom: 60px; /* Elevar un poco el chat */
+    }
+}

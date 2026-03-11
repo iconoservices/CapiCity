@@ -615,7 +615,9 @@ function drawPlayerLabel(ctx, p) {
 
 function DrawDelfin(ctx, x, y, color, walkTime, facingLeft, name, isIT, inBoat = false) {
     const isMoving = walkTime > 0;
-    const bounce = isMoving ? Math.abs(Math.sin(walkTime * 8)) * 4 : Math.sin(Date.now() * 0.003) * 2;
+    // Movimiento ondulado como pez, sin saltos bruscos
+    const bounce = isMoving ? Math.sin(walkTime * 5) * 3 : Math.sin(Date.now() * 0.003) * 2;
+    const pitch = isMoving ? Math.cos(walkTime * 5) * 0.15 : 0;
     const breathe = Math.sin(Date.now() * 0.002) * 1.5;
     
     ctx.save();
@@ -629,16 +631,23 @@ function DrawDelfin(ctx, x, y, color, walkTime, facingLeft, name, isIT, inBoat =
     }
     
     if (facingLeft) ctx.scale(-1, 1);
+    
+    // Sombra estática en el suelo
     ctx.fillStyle = 'rgba(0,0,0,0.1)';
     ctx.beginPath(); ctx.ellipse(0, 15, 25, 8, 0, 0, Math.PI * 2); ctx.fill();
+
+    // Rotación del cuerpo (Delfin)
+    ctx.rotate(pitch);
 
     const pinkColor = '#ff80ab'; 
     const darkPink = '#f06292';
 
     ctx.fillStyle = pinkColor;
-    ctx.beginPath(); ctx.ellipse(0, bounce, 30 + breathe, 18 + bounce, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0, bounce, 30 + breathe, 18, 0, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath(); ctx.ellipse(25, 5 + bounce, 15, 6, 0.1, 0, Math.PI * 2); ctx.fill();
+    // Aleta dorsal que también se mueve
     ctx.beginPath(); ctx.moveTo(-5, -15 + bounce); ctx.quadraticCurveTo(-15, -25 + bounce, -25, -10 + bounce); ctx.fill();
+    // Aleta lateral
     ctx.fillStyle = darkPink;
     ctx.beginPath(); ctx.ellipse(5, 8 + bounce, 12, 5, 0.5, 0, Math.PI * 2); ctx.fill();
 
@@ -655,8 +664,10 @@ function DrawDelfin(ctx, x, y, color, walkTime, facingLeft, name, isIT, inBoat =
 
 function DrawMotelo(ctx, x, y, color, walkTime, facingLeft, name, isIT) {
     const isMoving = walkTime > 0;
-    const bounce = isMoving ? Math.abs(Math.sin(walkTime * 5)) * 2 : 0;
-    const legMove = isMoving ? Math.sin(walkTime * 10) * 8 : 0; // Animación de patas
+    const bodyWobble = isMoving ? Math.sin(walkTime * 8) * 0.1 : 0;
+    const bounce = isMoving ? Math.abs(Math.sin(walkTime * 8)) * 1.5 : Math.sin(Date.now() * 0.002) * 1;
+    const legSwing1 = isMoving ? Math.sin(walkTime * 8) * 6 : 0;
+    const legSwing2 = isMoving ? -Math.sin(walkTime * 8) * 6 : 0;
     
     ctx.save();
     ctx.translate(x + 25, y + 25);
@@ -669,27 +680,30 @@ function DrawMotelo(ctx, x, y, color, walkTime, facingLeft, name, isIT) {
     
     if (facingLeft) ctx.scale(-1, 1);
 
-    // Patas con movimiento de 'caminado' (alternando delantera y trasera)
+    // Patas moviéndose en oposición
     ctx.fillStyle = '#5d4037';
-    ctx.beginPath(); ctx.ellipse(-12 + legMove, 12 - bounce, 6, 8, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(12 - legMove, 12 - bounce, 6, 8, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-12 + legSwing1, 12 - bounce/2, 6, 8, -bodyWobble, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(12 + legSwing2, 12 - bounce/2, 6, 8, -bodyWobble, 0, Math.PI * 2); ctx.fill();
+
+    // Rotación del cuerpo (Caparazón)
+    ctx.rotate(bodyWobble);
 
     // Caparazón (Verde café con patrones amarillos)
     ctx.fillStyle = '#3e2723'; 
     ctx.beginPath();
-    ctx.arc(0, 5, 30, Math.PI, 0);
+    ctx.arc(0, 5 - bounce, 30, Math.PI, 0);
     ctx.fill();
     
-    // Patterns de Motelo (Manchas amarillas)
+    // Patterns de Motelo (Manchas amarillas que suben con el caparazón)
     ctx.fillStyle = '#fbc02d';
-    ctx.beginPath(); ctx.arc(-15, -5, 4, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(15, -5, 4, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(0, -15, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(-15, -5 - bounce, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(15, -5 - bounce, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(0, -15 - bounce, 4, 0, Math.PI * 2); ctx.fill();
 
-    // Cabeza (Asoma un poco)
+    // Cabeza (Asoma un poco con balanceo extra)
     ctx.fillStyle = '#795548';
     ctx.beginPath();
-    ctx.ellipse(30, 0 - bounce, 12, 8, 0.2, 0, Math.PI * 2);
+    ctx.ellipse(30, - bounce, 12, 8, 0.2 + (isMoving ? Math.sin(walkTime * 4) * 0.1 : 0), 0, Math.PI * 2);
     ctx.fill();
 
     // Ojo y Manchas de la cabeza
