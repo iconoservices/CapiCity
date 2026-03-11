@@ -305,6 +305,11 @@ const setupJoystick = () => {
 setupJoystick();
 
 function abrirApp(app) {
+    if (app.action) {
+        app.action();
+        appToOpen = null;
+        return;
+    }
     if (app.name === "Muro de Planes") {
         document.getElementById('planes-modal').style.display = 'flex';
         renderPlanCard();
@@ -330,6 +335,7 @@ charOptions.forEach(opt => {
 function unirJuego() {
     const nameInput = document.getElementById('username-input');
     playerName = nameInput.value.trim() || 'Capibara Anónimo';
+    document.getElementById('login-overlay').style.display = 'none'; // FIX: Ocultar login
     document.getElementById('ui-overlay').style.display = 'flex';
     document.getElementById('boost-container').style.display = 'block';
     socket.emit('joinGame', { name: playerName, charType: selectedChar });
@@ -411,21 +417,21 @@ function updateMovement() {
 
     me.y = Math.max(0, Math.min(WORLD_SIZE - 50, me.y));
 
-    // Lógica del muelle y botes en el río
-    const inDockY = me.y > WORLD_SIZE / 2 - 50 && me.y < WORLD_SIZE / 2 + 50;
-    if (me.x >= 1250) {
-        if (oldX < 1250 && !inDockY) {
-            me.x = 1249; // Bloqueado al agua si no es el muelle
+    // Lógica del muelle y botes en el río (Con interacción de botón)
+    const inDockY = me.y > WORLD_SIZE / 2 - 80 && me.y < WORLD_SIZE / 2 + 80;
+    const nearEdge = Math.abs(me.x - 1250) < 50;
+    
+    if (inDockY && nearEdge) {
+        if (me.x < 1250) {
+            appToOpen = { name: "SUBIR AL BOTE", action: () => { me.x = 1260; socket.emit('playerMove', { x: me.x, y: me.y, facingLeft: me.facingLeft }); } };
         } else {
-            me.x = Math.max(0, Math.min(WORLD_SIZE - 50, me.x));
-        }
-    } else if (me.x < 1250) {
-        if (oldX >= 1250 && !inDockY) {
-            me.x = 1250; // Bloqueado a tierra si no es el muelle
-        } else {
-            me.x = Math.max(0, Math.min(1249, me.x));
+            appToOpen = { name: "BAJAR DEL BOTE", action: () => { me.x = 1240; socket.emit('playerMove', { x: me.x, y: me.y, facingLeft: me.facingLeft }); } };
         }
     }
+
+    // Bloqueo de cruce automático
+    if (me.x >= 1250 && oldX < 1250 && !appToOpen?.name?.includes("BOTE")) me.x = 1249;
+    if (me.x < 1250 && oldX >= 1250 && !appToOpen?.name?.includes("BOTE")) me.x = 1250;
 
     camera.x = me.x - canvas.width / 2 + 25;
     camera.y = me.y - canvas.height / 2 + 25;
@@ -598,7 +604,11 @@ function drawPlayerLabel(ctx, p) {
     ctx.fillStyle = 'white'; ctx.font = 'bold 12px Fredoka'; ctx.textAlign = 'center';
     ctx.shadowBlur = 4; ctx.shadowColor = 'black';
     const cleanName = (typeof p.name === 'string') ? p.name : (p.name?.name || "Anónimo");
-    const label = p.charType === 'monito' ? '🐒 ' + cleanName : (p.charType === 'delfin' ? '🐬 ' + cleanName : '🦫 ' + cleanName);
+    let emoji = '🦫 ';
+    if (p.charType === 'monito') emoji = '🐒 ';
+    if (p.charType === 'delfin') emoji = '🐬 ';
+    if (p.charType === 'motelo') emoji = '🐢 ';
+    const label = emoji + cleanName;
     ctx.fillText(label, p.x + 25, p.y - 48);
     ctx.shadowBlur = 0;
 }
@@ -643,6 +653,53 @@ function DrawDelfin(ctx, x, y, color, walkTime, facingLeft, name, isIT, inBoat =
     ctx.restore();
 }
 
+function DrawMotelo(ctx, x, y, color, walkTime, facingLeft, name, isIT) {
+    const isMoving = walkTime > 0;
+    const bounce = isMoving ? Math.abs(Math.sin(walkTime * 5)) * 2 : 0;
+    
+    ctx.save();
+    ctx.translate(x + 25, y + 25);
+    
+    if (isIT) {
+        ctx.shadowBlur = 15; ctx.shadowColor = 'red';
+        ctx.strokeStyle = 'red'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(0, 0, 35, 0, Math.PI * 2); ctx.stroke();
+    }
+    
+    if (facingLeft) ctx.scale(-1, 1);
+
+    // Patas
+    ctx.fillStyle = '#5d4037';
+    ctx.beginPath(); ctx.ellipse(-12, 12 - bounce, 6, 8, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(12, 12 - bounce, 6, 8, 0, 0, Math.PI * 2); ctx.fill();
+
+    // Caparazón (Verde café con patrones amarillos)
+    ctx.fillStyle = '#3e2723'; 
+    ctx.beginPath();
+    ctx.arc(0, 5, 30, Math.PI, 0);
+    ctx.fill();
+    
+    // Patterns de Motelo (Manchas amarillas)
+    ctx.fillStyle = '#fbc02d';
+    ctx.beginPath(); ctx.arc(-15, -5, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(15, -5, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(0, -15, 4, 0, Math.PI * 2); ctx.fill();
+
+    // Cabeza (Asoma un poco)
+    ctx.fillStyle = '#795548';
+    ctx.beginPath();
+    ctx.ellipse(30, 0 - bounce, 12, 8, 0.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Ojo y Manchas de la cabeza
+    ctx.fillStyle = 'black';
+    ctx.beginPath(); ctx.arc(35, -2 - bounce, 2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fbc02d';
+    ctx.beginPath(); ctx.arc(30, -4 - bounce, 1.5, 0, Math.PI * 2); ctx.fill();
+
+    ctx.restore();
+}
+
 function drawPalmTree(x, y, scale = 1.0) {
     ctx.save();
     ctx.translate(x, y); ctx.scale(scale, scale);
@@ -658,10 +715,46 @@ function drawPalmTree(x, y, scale = 1.0) {
     ctx.restore();
 }
 
+function drawVictoriaRegia(x, y) {
+    const breathe = Math.sin(Date.now() * 0.002 + x) * 2;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.fillStyle = '#1b5e20';
+    ctx.beginPath(); ctx.arc(0, breathe, 50, 0, Math.PI * 1.85); ctx.lineTo(0,0); ctx.fill();
+    ctx.strokeStyle = '#2e7d32'; ctx.lineWidth = 3; ctx.stroke();
+    // Borde levantado
+    ctx.beginPath(); ctx.arc(0, breathe, 52, 0, Math.PI * 1.85); ctx.stroke();
+    ctx.restore();
+}
+
+function drawJumpingFish(x, y, offset) {
+    const time = (Date.now() * 0.002 + offset) % 5; // Salta cada 5 seg
+    if (time < 1) {
+        const h = Math.sin(time * Math.PI) * 40;
+        ctx.save();
+        ctx.translate(x, y - h);
+        ctx.rotate(Math.PI / 2 - time * Math.PI);
+        ctx.fillStyle = '#4fc3f7';
+        ctx.beginPath(); ctx.ellipse(0, 0, 10, 5, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(-10, 0); ctx.lineTo(-15, -5); ctx.lineTo(-15, 5); ctx.fill(); // Cola
+        ctx.restore();
+    }
+}
+
 function drawForestFloor() {
     const oceanGrad = ctx.createLinearGradient(0, 0, 0, WORLD_SIZE);
     oceanGrad.addColorStop(0, '#0277bd'); oceanGrad.addColorStop(1, '#01579b');
     ctx.fillStyle = oceanGrad; ctx.fillRect(-500, -500, WORLD_SIZE + 1000, WORLD_SIZE + 1000);
+    
+    // Victoria Regias en el río
+    for(let i=0; i<8; i++) {
+        drawVictoriaRegia(1400, 100 + i * 180);
+    }
+    // Peces saltando
+    drawJumpingFish(1350, 400, 0);
+    drawJumpingFish(1420, 800, 2);
+    drawJumpingFish(1300, 1100, 4);
+
     ctx.fillStyle = '#1b5e20';
     ctx.beginPath(); drawRoundedRect(ctx, 0, 0, 1300, WORLD_SIZE, 80); ctx.fill();
     ctx.fillStyle = '#2e7d32';
@@ -923,6 +1016,8 @@ function draw() {
             DrawMono(ctx, p.x, p.y + (inBoat ? 5 : 0), p.color, p.walkTime, p.facingLeft, p.name, isIT, inBoat);
         } else if (p.charType === 'delfin') {
             DrawDelfin(ctx, p.x, p.y + (inBoat ? 5 : 0), p.color, p.walkTime, p.facingLeft, p.name, isIT, inBoat);
+        } else if (p.charType === 'motelo') {
+            DrawMotelo(ctx, p.x, p.y + (inBoat ? 5 : 0), p.color, p.walkTime, p.facingLeft, p.name, isIT);
         } else {
             DrawCapibara(ctx, p.x, p.y + (inBoat ? 5 : 0), p.color, p.walkTime, p.facingLeft, p.name, isIT, inBoat);
         }
@@ -936,8 +1031,15 @@ function draw() {
     });
 
     if (appToOpen && me) {
-        ctx.fillStyle = 'white'; ctx.beginPath(); drawRoundedRect(ctx, me.x - 20, me.y - 130, 110, 30, 15); ctx.fill();
-        ctx.fillStyle = '#282a36'; ctx.font = 'bold 11px Fredoka'; ctx.textAlign = 'center'; ctx.fillText(`🎮 ABRIR ${appToOpen.name.split(' ')[0]}`, me.x + 35, me.y - 110);
+        const btnText = document.getElementById('btn-interact');
+        if (btnText) btnText.innerText = appToOpen.name.split(' ')[0]; // Update mobile btn
+        
+        ctx.fillStyle = 'white'; ctx.beginPath(); drawRoundedRect(ctx, me.x - 40, me.y - 130, 140, 30, 15); ctx.fill();
+        ctx.fillStyle = '#282a36'; ctx.font = 'bold 11px Fredoka'; ctx.textAlign = 'center'; 
+        ctx.fillText(`🎮 [E] ${appToOpen.name}`, me.x + 30, me.y - 110);
+    } else {
+        const btnText = document.getElementById('btn-interact');
+        if (btnText) btnText.innerText = "ABRIR";
     }
     ctx.restore();
     drawDayAtmosphere(now);
