@@ -408,7 +408,13 @@ function updateMovement() {
         }
     }
 
-    const currentSpeed = speed * speedMultiplier;
+    // Velocidad base según personaje (¡El motelo es lento!)
+    let baseSpeed = speed;
+    if (me.charType === 'motelo') {
+        baseSpeed = speed * 0.45; // 45% de la velocidad normal
+    }
+
+    const currentSpeed = baseSpeed * speedMultiplier;
 
     if (keys.ArrowLeft || keys.a) { me.x -= currentSpeed; moved = true; me.facingLeft = true; }
     if (keys.ArrowRight || keys.d) { me.x += currentSpeed; moved = true; me.facingLeft = false; }
@@ -664,10 +670,11 @@ function DrawDelfin(ctx, x, y, color, walkTime, facingLeft, name, isIT, inBoat =
 
 function DrawMotelo(ctx, x, y, color, walkTime, facingLeft, name, isIT) {
     const isMoving = walkTime > 0;
-    const bodyWobble = isMoving ? Math.sin(walkTime * 8) * 0.1 : 0;
-    const bounce = isMoving ? Math.abs(Math.sin(walkTime * 8)) * 1.5 : Math.sin(Date.now() * 0.002) * 1;
-    const legSwing1 = isMoving ? Math.sin(walkTime * 8) * 6 : 0;
-    const legSwing2 = isMoving ? -Math.sin(walkTime * 8) * 6 : 0;
+    // Animación de caminar más lenta y pesada
+    const bodyWobble = isMoving ? Math.sin(walkTime * 4) * 0.1 : 0;
+    const bounce = isMoving ? Math.abs(Math.sin(walkTime * 4)) * 1.5 : Math.sin(Date.now() * 0.002) * 1;
+    const legSwing1 = isMoving ? Math.sin(walkTime * 4) * 6 : 0;
+    const legSwing2 = isMoving ? -Math.sin(walkTime * 4) * 6 : 0;
     
     ctx.save();
     ctx.translate(x + 25, y + 25);
