@@ -656,6 +656,7 @@ function DrawDelfin(ctx, x, y, color, walkTime, facingLeft, name, isIT, inBoat =
 function DrawMotelo(ctx, x, y, color, walkTime, facingLeft, name, isIT) {
     const isMoving = walkTime > 0;
     const bounce = isMoving ? Math.abs(Math.sin(walkTime * 5)) * 2 : 0;
+    const legMove = isMoving ? Math.sin(walkTime * 10) * 8 : 0; // Animación de patas
     
     ctx.save();
     ctx.translate(x + 25, y + 25);
@@ -668,10 +669,10 @@ function DrawMotelo(ctx, x, y, color, walkTime, facingLeft, name, isIT) {
     
     if (facingLeft) ctx.scale(-1, 1);
 
-    // Patas
+    // Patas con movimiento de 'caminado' (alternando delantera y trasera)
     ctx.fillStyle = '#5d4037';
-    ctx.beginPath(); ctx.ellipse(-12, 12 - bounce, 6, 8, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(12, 12 - bounce, 6, 8, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-12 + legMove, 12 - bounce, 6, 8, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(12 - legMove, 12 - bounce, 6, 8, 0, 0, Math.PI * 2); ctx.fill();
 
     // Caparazón (Verde café con patrones amarillos)
     ctx.fillStyle = '#3e2723'; 
