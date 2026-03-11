@@ -408,15 +408,7 @@ function updateMovement() {
         }
     }
 
-    // Velocidad base según personaje
-    let baseSpeed = speed;
-    if (me.charType === 'motelo') {
-        baseSpeed = speed * 0.35; // 35% de la velocidad normal ¡Aún más lento!
-    } else if (me.charType === 'bufeo' || me.charType === 'delfin') {
-        baseSpeed = speed * 0.80; // 80% de la velocidad para el Bufeo
-    }
-
-    const currentSpeed = baseSpeed * speedMultiplier;
+    const currentSpeed = speed * speedMultiplier;
 
     if (keys.ArrowLeft || keys.a) { me.x -= currentSpeed; moved = true; me.facingLeft = true; }
     if (keys.ArrowRight || keys.d) { me.x += currentSpeed; moved = true; me.facingLeft = false; }
@@ -484,7 +476,7 @@ function getDist(x1, y1, x2, y2) { return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) *
 // --- RENDERIZADO ---
 function DrawCapibara(ctx, x, y, color, walkTime, facingLeft, name, isIT, inBoat = false) {
     const isMoving = walkTime > 0;
-    const bounce = isMoving ? Math.abs(Math.sin(walkTime * 8)) * 3 : Math.sin(Date.now() * 0.003) * 1.5;
+    const bounce = isMoving ? Math.abs(Math.sin(walkTime * 5)) * 3 : Math.sin(Date.now() * 0.003) * 1.5;
     const breathe = Math.sin(Date.now() * 0.002) * 1.5;
     ctx.save();
     ctx.translate(x + 25, y + 20);
@@ -501,7 +493,7 @@ function DrawCapibara(ctx, x, y, color, walkTime, facingLeft, name, isIT, inBoat
         ctx.beginPath(); ctx.ellipse(0, 18, 25, 8, 0, 0, Math.PI * 2); ctx.fill();
     }
     const bodyColor = '#9e7647'; ctx.fillStyle = bodyColor;
-    const legOffset = isMoving ? Math.sin(walkTime * 10) * 5 : 0;
+    const legOffset = isMoving ? Math.sin(walkTime * 5) * 5 : 0;
 
     if (!inBoat) {
         const toeColor = '#795548';
@@ -547,7 +539,7 @@ function DrawCapibara(ctx, x, y, color, walkTime, facingLeft, name, isIT, inBoat
 
 function DrawMono(ctx, x, y, color, walkTime, facingLeft, name, isIT, inBoat = false) {
     const isMoving = walkTime > 0;
-    const bounce = isMoving ? Math.abs(Math.sin(walkTime * 8)) * 4 : Math.sin(Date.now() * 0.003) * 2;
+    const bounce = isMoving ? Math.abs(Math.sin(walkTime * 5)) * 4 : Math.sin(Date.now() * 0.003) * 2;
     const breathe = Math.sin(Date.now() * 0.002) * 1.2;
     
     ctx.save();
@@ -569,7 +561,7 @@ function DrawMono(ctx, x, y, color, walkTime, facingLeft, name, isIT, inBoat = f
 
     const monkeyColor = '#6d4c41'; 
     const faceColor = '#ffccbc';   
-    const legOffset = isMoving ? Math.sin(walkTime * 10) * 8 : 0;
+    const legOffset = isMoving ? Math.sin(walkTime * 5) * 8 : 0;
 
     if (!inBoat) {
         ctx.lineWidth = 6; ctx.strokeStyle = monkeyColor; ctx.lineCap = 'round';
@@ -672,11 +664,11 @@ function DrawBufeo(ctx, x, y, color, walkTime, facingLeft, name, isIT, inBoat = 
 
 function DrawMotelo(ctx, x, y, color, walkTime, facingLeft, name, isIT) {
     const isMoving = walkTime > 0;
-    // Animación de caminar más lenta y pesada
-    const bodyWobble = isMoving ? Math.sin(walkTime * 4) * 0.1 : 0;
-    const bounce = isMoving ? Math.abs(Math.sin(walkTime * 4)) * 1.5 : Math.sin(Date.now() * 0.002) * 1;
-    const legSwing1 = isMoving ? Math.sin(walkTime * 4) * 6 : 0;
-    const legSwing2 = isMoving ? -Math.sin(walkTime * 4) * 6 : 0;
+    // Animación de caminar más lenta y pesada, en sincronía
+    const bodyWobble = isMoving ? Math.sin(walkTime * 5) * 0.1 : 0;
+    const bounce = isMoving ? Math.abs(Math.sin(walkTime * 5)) * 1.5 : Math.sin(Date.now() * 0.002) * 1;
+    const legSwing1 = isMoving ? Math.sin(walkTime * 5) * 6 : 0;
+    const legSwing2 = isMoving ? -Math.sin(walkTime * 5) * 6 : 0;
     
     ctx.save();
     ctx.translate(x + 25, y + 25);
