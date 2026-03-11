@@ -73,6 +73,50 @@ html {
     transform: scale(1.05);
 }
 
+/* Selector de Personajes */
+#character-selector {
+    padding: 10px;
+}
+
+.char-option {
+    cursor: pointer;
+    padding: 10px;
+    border-radius: 15px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 2px solid transparent;
+    transition: 0.3s;
+    width: 80px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.char-option:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.char-option.active {
+    background: rgba(189, 147, 249, 0.2);
+    border-color: #bd93f9;
+    transform: scale(1.1);
+}
+
+.char-preview {
+    font-size: 30px;
+    margin-bottom: 5px;
+    filter: drop-shadow(0 2px 5px rgba(0,0,0,0.5));
+}
+
+.char-option span {
+    font-size: 12px;
+    font-weight: bold;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.char-option.active span {
+    color: #bd93f9;
+}
+
 #ui-overlay {
     position: absolute;
     top: 0;

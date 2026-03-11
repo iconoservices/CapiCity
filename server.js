@@ -16,18 +16,23 @@ io.on('connection', (socket) => {
 
     // Guardamos al jugador pero no avisamos a nadie hasta que envíe su nombre
     players[socket.id] = {
-        x: Math.random() * 600 + 100, // Posición aleatoria inicial
-        y: Math.random() * 400 + 100,
-        color: `hsl(${Math.random() * 360}, 70%, 50%)`, // Color pseudo-aleatorio para distinguirlos
+        x: Math.random() * 100 + 700, // Posición central (Cerca del reloj)
+        y: Math.random() * 100 + 700,
+        color: `hsl(${Math.random() * 360}, 70%, 50%)`, // Color pseudo-aleatorio
         id: socket.id,
-        name: "Capibara Nuevo",
+        name: "Nuevo",
+        charType: "capibara", // Por defecto
         message: '',
         messageTimer: 0,
         facingLeft: false // Dirección de la mirada
     };
 
-    socket.on('joinGame', (name) => {
-        players[socket.id].name = name || "Capibara S/N";
+    socket.on('joinGame', (data) => {
+        const name = typeof data === 'string' ? data : data.name;
+        const charType = data.charType || "capibara";
+
+        players[socket.id].name = name || "Anónimo";
+        players[socket.id].charType = charType;
 
         // Si nadie la trae, este jugador es el elegido
         if (!itPlayerId) {
@@ -146,5 +151,5 @@ const activePolls = [
 
 const PORT = process.env.PORT || 3000;
 http.listen(PORT, () => {
-    console.log(`🚀 ¡La Plaza del Chisme está abierta en http://localhost:${PORT}!`);
+    console.log(`🚀 Capi City funcionando en http://localhost:${PORT}`);
 });

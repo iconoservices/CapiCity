@@ -60,6 +60,7 @@ function spawnParticles(x, y, color, count = 10) {
 // Apps eliminadas del centro, ahora están en el Sidebar
 let appToOpen = null;
 let playerName = '';
+let selectedChar = 'capibara'; // Personaje elegido por defecto
 let plansQueue = [];
 let activePolls = [];
 let itPlayerId = null; // Quien "la trae" en las agarradas
@@ -143,35 +144,7 @@ socket.on('newPlan', (plan) => {
     plansQueue.unshift(plan);
     renderPlanCard();
 });
-
-function renderPlanCard() {
-    const container = document.getElementById('plan-card-container');
-    if (!container) return;
-    if (plansQueue.length === 0) {
-        container.innerHTML = `
-            <div class="plan-card" style="justify-content:center;">
-                <p style="margin:0;">No hay anuncios nuevos por ahora... 🌱</p>
-            </div>`;
-        return;
-    }
-    const plan = plansQueue[0];
-    const posterImg = plan.img ? `<img src="${plan.img}" class="plan-poster">` : `<div class="plan-poster-placeholder">🌴</div>`;
-
-    container.innerHTML = `
-        <div class="plan-card" style="animation: bannerIn 0.5s ease-out forwards">
-            ${posterImg}
-            <div class="plan-info">
-                <h3>${plan.title}</h3>
-                <p class="tiny-desc">${plan.desc}</p>
-                <div class="card-meta">Por: <span class="tiny-owner">${plan.owner}</span> • 🕒 ${plan.time || ''}</div>
-            </div>
-            <div class="card-footer">
-                <button class="like-btn">✅ Me uno</button>
-                <button class="dislike-btn">❌ Paso</button>
-            </div>
-        </div>
-    `;
-}
+// Función para renderizar planes movida o eliminada porque el banner ha sido quitado.
 
 if (document.getElementById('submit-plan-btn')) {
     document.getElementById('submit-plan-btn').onclick = () => {
@@ -258,31 +231,7 @@ if (document.querySelector('.close-create-poll-btn')) document.querySelector('.c
 
 // Evento único para manejar CLICS en botones dinámicos
 document.addEventListener('click', (e) => {
-    const card = document.querySelector('.plan-card');
-
-    // Tinder Swipe
-    if (e.target.classList.contains('like-btn')) {
-        if (playerName === 'Capibara Anónimo' || !playerName) {
-            alert("⚠️ ¡Solo con cuenta!");
-        } else {
-            if (card) card.classList.add('swiping-right');
-            setTimeout(() => {
-                alert("✅ ¡Anotado " + playerName + "!");
-                const swiped = plansQueue.shift();
-                plansQueue.push(swiped);
-                renderPlanCard();
-            }, 400);
-        }
-    }
-
-    if (e.target.classList.contains('dislike-btn')) {
-        if (card) card.classList.add('swiping-left');
-        setTimeout(() => {
-            const swiped = plansQueue.shift();
-            plansQueue.push(swiped);
-            renderPlanCard();
-        }, 400);
-    }
+    // Eventos de Votación y Swipe de la interfaz eliminados para liberar espacio.
 
     // Votación
     if (e.target.closest('.poll-vote-btn')) {
@@ -361,13 +310,23 @@ function abrirApp(app) {
     }
 }
 
+// Selección de Personaje en el Login
+const charOptions = document.querySelectorAll('.char-option');
+charOptions.forEach(opt => {
+    opt.addEventListener('click', () => {
+        charOptions.forEach(o => o.classList.remove('active'));
+        opt.classList.add('active');
+        selectedChar = opt.getAttribute('data-char');
+    });
+});
+
 if (document.getElementById('join-btn')) {
     document.getElementById('join-btn').addEventListener('click', () => {
         const nameInput = document.getElementById('username-input');
         playerName = nameInput.value.trim() || 'Capibara Anónimo';
         document.getElementById('login-overlay').style.display = 'none';
         document.getElementById('ui-overlay').style.display = 'flex';
-        socket.emit('joinGame', playerName);
+        socket.emit('joinGame', { name: playerName, charType: selectedChar });
     });
 }
 
@@ -395,13 +354,30 @@ function updateMovement() {
     let moved = false;
     let me = players[socket.id];
 
+    let oldX = me.x;
+
     if (keys.ArrowLeft || keys.a) { me.x -= speed; moved = true; me.facingLeft = true; }
     if (keys.ArrowRight || keys.d) { me.x += speed; moved = true; me.facingLeft = false; }
     if (keys.ArrowUp || keys.w) { me.y -= speed; moved = true; }
     if (keys.ArrowDown || keys.s) { me.y += speed; moved = true; }
 
-    me.x = Math.max(0, Math.min(WORLD_SIZE - 50, me.x));
     me.y = Math.max(0, Math.min(WORLD_SIZE - 50, me.y));
+
+    // Lógica del muelle y botes en el río
+    const inDockY = me.y > WORLD_SIZE / 2 - 50 && me.y < WORLD_SIZE / 2 + 50;
+    if (me.x >= 1250) {
+        if (oldX < 1250 && !inDockY) {
+            me.x = 1249; // Bloqueado al agua si no es el muelle
+        } else {
+            me.x = Math.max(0, Math.min(WORLD_SIZE - 50, me.x));
+        }
+    } else if (me.x < 1250) {
+        if (oldX >= 1250 && !inDockY) {
+            me.x = 1250; // Bloqueado a tierra si no es el muelle
+        } else {
+            me.x = Math.max(0, Math.min(1249, me.x));
+        }
+    }
 
     camera.x = me.x - canvas.width / 2 + 25;
     camera.y = me.y - canvas.height / 2 + 25;
@@ -444,7 +420,7 @@ function updateMovement() {
 function getDist(x1, y1, x2, y2) { return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2); }
 
 // --- RENDERIZADO ---
-function DrawCapibara(ctx, x, y, color, walkTime, facingLeft, name, isIT) {
+function DrawCapibara(ctx, x, y, color, walkTime, facingLeft, name, isIT, inBoat = false) {
     const isMoving = walkTime > 0;
     const bounce = isMoving ? Math.abs(Math.sin(walkTime * 8)) * 3 : Math.sin(Date.now() * 0.003) * 1.5;
     const breathe = Math.sin(Date.now() * 0.002) * 1.5;
@@ -452,53 +428,127 @@ function DrawCapibara(ctx, x, y, color, walkTime, facingLeft, name, isIT) {
     ctx.translate(x + 25, y + 20);
     if (isIT) {
         const glow = Math.sin(Date.now() * 0.01) * 15 + 15;
-        ctx.shadowBlur = glow; ctx.shadowColor = '#50fa7b';
-        ctx.strokeStyle = '#50fa7b'; ctx.lineWidth = 3;
+        ctx.shadowBlur = glow; ctx.shadowColor = '#ff5555';
+        ctx.strokeStyle = '#ff5555'; ctx.lineWidth = 3;
         ctx.beginPath(); ctx.ellipse(0, 0, 35, 25, 0, 0, Math.PI * 2); ctx.stroke();
     }
     if (facingLeft) ctx.scale(-1, 1);
-    ctx.fillStyle = 'rgba(0,0,0,0.15)';
-    ctx.beginPath(); ctx.ellipse(0, 18, 25, 8, 0, 0, Math.PI * 2); ctx.fill();
+
+    if (!inBoat) {
+        ctx.fillStyle = 'rgba(0,0,0,0.15)';
+        ctx.beginPath(); ctx.ellipse(0, 18, 25, 8, 0, 0, Math.PI * 2); ctx.fill();
+    }
     const bodyColor = '#9e7647'; ctx.fillStyle = bodyColor;
     const legOffset = isMoving ? Math.sin(walkTime * 10) * 5 : 0;
 
-    // Patas con pesuñitas (Detalle tierno)
-    const toeColor = '#795548'; // Marroncito para las uñas/pesuñitas
+    if (!inBoat) {
+        const toeColor = '#795548';
+        ctx.save();
+        ctx.translate(-15, 12 + legOffset);
+        ctx.fillStyle = bodyColor;
+        ctx.beginPath(); ctx.ellipse(0, 0, 6, 10, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = toeColor;
+        ctx.beginPath(); ctx.arc(-3, 8, 2.5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(3, 8, 2.5, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
 
-    // Pata izquierda (atrás)
-    ctx.save();
-    ctx.translate(-15, 12 + legOffset);
-    ctx.fillStyle = bodyColor;
-    ctx.beginPath(); ctx.ellipse(0, 0, 6, 10, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = toeColor;
-    ctx.beginPath(); ctx.arc(-3, 8, 2.5, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(3, 8, 2.5, 0, Math.PI * 2); ctx.fill();
-    ctx.restore();
+        ctx.save();
+        ctx.translate(15, 12 - legOffset);
+        ctx.fillStyle = bodyColor;
+        ctx.beginPath(); ctx.ellipse(0, 0, 6, 10, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = toeColor;
+        ctx.beginPath(); ctx.arc(-3, 8, 2.5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(3, 8, 2.5, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+    }
 
-    // Pata derecha (adelante)
-    ctx.save();
-    ctx.translate(15, 12 - legOffset);
     ctx.fillStyle = bodyColor;
-    ctx.beginPath(); ctx.ellipse(0, 0, 6, 10, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = toeColor;
-    ctx.beginPath(); ctx.arc(-3, 8, 2.5, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(3, 8, 2.5, 0, Math.PI * 2); ctx.fill();
-    ctx.restore();
     ctx.beginPath(); ctx.ellipse(0, 0, 32 + breathe, 24 + bounce, 0, 0, Math.PI * 2); ctx.fill();
     ctx.save();
     ctx.translate(24, -14 + bounce / 2); ctx.rotate(-0.1);
     ctx.beginPath(); ctx.ellipse(0, 0, 18, 15, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#212121'; ctx.beginPath(); ctx.arc(7, -5, 2.8, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = 'white'; ctx.beginPath(); ctx.arc(8, -6.5, 1, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#212121'; 
+    const isBlinking = (Math.sin(Date.now() * 0.005) > 0.98); // Parpadeo aleatorio basado en el tiempo
+    if (isBlinking) {
+        ctx.fillRect(4, -6, 5, 2); // Ojo cerrado
+    } else {
+        ctx.beginPath(); ctx.arc(7, -5, 2.8, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'white'; ctx.beginPath(); ctx.arc(8, -6.5, 1, 0, Math.PI * 2); ctx.fill();
+    }
     ctx.fillStyle = '#795548'; ctx.globalAlpha = 0.3;
     ctx.beginPath(); ctx.ellipse(12, 3, 8, 6, 0, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1.0;
     ctx.fillStyle = '#3e2723'; ctx.beginPath(); ctx.arc(16, 1, 2, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = bodyColor; ctx.beginPath(); ctx.ellipse(-2, -14, 6, 8, -0.4, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
     ctx.restore();
+}
+
+function DrawMono(ctx, x, y, color, walkTime, facingLeft, name, isIT, inBoat = false) {
+    const isMoving = walkTime > 0;
+    const bounce = isMoving ? Math.abs(Math.sin(walkTime * 8)) * 4 : Math.sin(Date.now() * 0.003) * 2;
+    const breathe = Math.sin(Date.now() * 0.002) * 1.2;
+    
+    ctx.save();
+    ctx.translate(x + 25, y + 20);
+    
+    if (isIT) {
+        const glow = Math.sin(Date.now() * 0.01) * 15 + 15;
+        ctx.shadowBlur = glow; ctx.shadowColor = '#ff5555';
+        ctx.strokeStyle = '#ff5555'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(0, 0, 30, 0, Math.PI * 2); ctx.stroke();
+    }
+    
+    if (facingLeft) ctx.scale(-1, 1);
+
+    if (!inBoat) {
+        ctx.fillStyle = 'rgba(0,0,0,0.15)';
+        ctx.beginPath(); ctx.ellipse(0, 18, 20, 6, 0, 0, Math.PI * 2); ctx.fill();
+    }
+
+    const monkeyColor = '#6d4c41'; 
+    const faceColor = '#ffccbc';   
+    const legOffset = isMoving ? Math.sin(walkTime * 10) * 8 : 0;
+
+    if (!inBoat) {
+        ctx.lineWidth = 6; ctx.strokeStyle = monkeyColor; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(-10, 5); ctx.lineTo(-18, 15 + legOffset); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(10, 5); ctx.lineTo(18, 15 - legOffset); ctx.stroke();
+    }
+
+    ctx.fillStyle = monkeyColor;
+    ctx.beginPath(); ctx.ellipse(0, 0, 18 + breathe, 22 + bounce, 0, 0, Math.PI * 2); ctx.fill();
+
+    ctx.save();
+    ctx.translate(0, -25 + bounce / 2);
+    ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(-15, -2, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(15, -2, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = faceColor;
+    ctx.beginPath(); ctx.arc(-15, -2, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(15, -2, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0, 2, 11, 9, 0, 0, Math.PI * 2);    // Ojos
+    ctx.fillStyle = '#212121';
+    const isBlinkingMono = (Math.sin(Date.now() * 0.004) > 0.97); 
+    if (isBlinkingMono) {
+        ctx.fillRect(-7, -2, 6, 2); // Ojo Izq cerrado
+        ctx.fillRect(1, -2, 6, 2);  // Ojo Der cerrado
+    } else {
+        ctx.beginPath(); ctx.arc(-4, -1, 2.5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(4, -1, 2.5, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+
+    ctx.strokeStyle = monkeyColor; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(-10, 10); ctx.bezierCurveTo(-30, 10, -30, -20, -15, -25); ctx.stroke();
+
+    ctx.restore();
+}
+
+function drawPlayerLabel(ctx, p) {
     ctx.fillStyle = 'white'; ctx.font = 'bold 12px Fredoka'; ctx.textAlign = 'center';
     ctx.shadowBlur = 4; ctx.shadowColor = 'black';
-    ctx.fillText(name || '🦫', x + 25, y - 48);
+    const label = p.charType === 'monito' ? '🐒 ' + p.name : '🦫 ' + p.name;
+    ctx.fillText(label, p.x + 25, p.y - 48);
     ctx.shadowBlur = 0;
 }
 
@@ -522,13 +572,98 @@ function drawForestFloor() {
     oceanGrad.addColorStop(0, '#0277bd'); oceanGrad.addColorStop(1, '#01579b');
     ctx.fillStyle = oceanGrad; ctx.fillRect(-500, -500, WORLD_SIZE + 1000, WORLD_SIZE + 1000);
     ctx.fillStyle = '#1b5e20';
-    ctx.beginPath(); drawRoundedRect(ctx, 0, 0, WORLD_SIZE, WORLD_SIZE, 80); ctx.fill();
+    ctx.beginPath(); drawRoundedRect(ctx, 0, 0, 1300, WORLD_SIZE, 80); ctx.fill();
     ctx.fillStyle = '#2e7d32';
     drawRoundedRect(ctx, WORLD_SIZE / 2 - 45, 50, 90, WORLD_SIZE - 100, 25); ctx.fill();
-    drawRoundedRect(ctx, 50, WORLD_SIZE / 2 - 45, WORLD_SIZE - 100, 90, 25); ctx.fill();
+    drawRoundedRect(ctx, 50, WORLD_SIZE / 2 - 45, 1250, 90, 25); ctx.fill();
     ctx.fillStyle = '#388e3c';
     ctx.beginPath(); ctx.arc(WORLD_SIZE / 2, WORLD_SIZE / 2, 120, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = '#2e7d32'; ctx.lineWidth = 4; ctx.stroke();
+
+    // Muelle interactivo para los botes
+    ctx.fillStyle = '#5d4037';
+    drawRoundedRect(ctx, 1250, WORLD_SIZE / 2 - 30, 80, 60, 5); ctx.fill();
+
+    // Botes anclados a la espera
+    drawStaticBoat(1310, WORLD_SIZE / 2 - 80);
+    drawStaticBoat(1310, WORLD_SIZE / 2 + 80);
+
+    // Boulevard de Yarinacocha (Parque junto al agua)
+    // Pavimento decorativo del parque
+    ctx.fillStyle = '#9e9e9e'; // Gris cemento/piedra
+    ctx.beginPath(); drawRoundedRect(ctx, 1100, WORLD_SIZE / 2 - 200, 150, 400, 20); ctx.fill();
+    ctx.fillStyle = '#757575'; // Borde oscuro
+    ctx.lineWidth = 4; ctx.stroke();
+
+    // Caminos internos del parque
+    ctx.fillStyle = '#e0e0e0';
+    ctx.fillRect(1150, WORLD_SIZE / 2 - 180, 50, 360);
+    ctx.fillRect(1120, WORLD_SIZE / 2 - 25, 110, 50);
+
+    // Letrero "Boulevard Capibacocha" (Estilo cartel de madera)
+    // Poste central
+    ctx.fillStyle = '#3e2723';
+    ctx.fillRect(1192, WORLD_SIZE / 2 - 160, 16, 40);
+
+    // Panel de madera
+    ctx.fillStyle = '#5d4037';
+    ctx.beginPath(); drawRoundedRect(ctx, 1100, WORLD_SIZE / 2 - 185, 200, 35, 12); ctx.fill();
+    ctx.strokeStyle = '#3e2723'; ctx.lineWidth = 4; ctx.stroke();
+    ctx.fillStyle = '#4e342e'; // Detalle de sombra interior
+    ctx.beginPath(); drawRoundedRect(ctx, 1105, WORLD_SIZE / 2 - 180, 190, 25, 8); ctx.fill();
+
+    // Texto del letrero
+    ctx.fillStyle = '#ffecb3'; // Color crema elegante
+    ctx.font = 'bold 15px Fredoka';
+    ctx.textAlign = 'center';
+    ctx.fillText("BOULEVARD CAPIBACOCHA", 1200, WORLD_SIZE / 2 - 162);
+
+    // Bancas para sentarse mirando al lago
+    drawParkBench(1220, WORLD_SIZE / 2 - 100);
+    drawParkBench(1220, WORLD_SIZE / 2 + 100);
+    drawParkBench(1220, WORLD_SIZE / 2 + 30);
+    drawParkBench(1220, WORLD_SIZE / 2 - 30);
+}
+
+function drawParkBench(x, y) {
+    ctx.fillStyle = '#4e342e'; // Madera oscura
+    ctx.fillRect(x, y, 8, 20); // Pata izq
+    ctx.fillRect(x + 22, y, 8, 20); // Pata der
+    ctx.fillStyle = '#795548'; // Madera clara asiento
+    ctx.fillRect(x - 5, y + 5, 40, 10); // Asiento
+    ctx.fillRect(x - 5, y - 5, 40, 6); // Respaldo
+}
+
+function drawStaticBoat(x, y) {
+    const bob = Math.sin(Date.now() * 0.002 + x) * 2;
+    ctx.save();
+    ctx.translate(x, y + bob);
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.beginPath(); ctx.ellipse(-5, 8, 30, 10, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#795548';
+    ctx.beginPath(); ctx.ellipse(-5, 5, 30, 12, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#3e2723';
+    ctx.beginPath(); ctx.ellipse(-5, 3, 22, 8, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+}
+
+function drawPlayerBoat(ctx, x, y, facingLeft) {
+    const bob = Math.sin(Date.now() * 0.003) * 2;
+    ctx.save();
+    ctx.translate(x + 25, y + 25 + bob);
+    if (facingLeft) ctx.scale(-1, 1);
+
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.beginPath(); ctx.ellipse(-5, 8, 30, 10, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#795548';
+    ctx.beginPath(); ctx.ellipse(-5, 5, 30, 12, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#3e2723';
+    ctx.beginPath(); ctx.ellipse(-5, 3, 22, 8, 0, 0, Math.PI * 2); ctx.fill();
+
+    ctx.strokeStyle = '#d7ccc8';
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(0, 5); ctx.lineTo(15, 15); ctx.stroke();
+    ctx.restore();
 }
 
 function drawDayAtmosphere(now) {
@@ -556,16 +691,88 @@ function drawMinimap() {
 }
 
 function drawPublicClock(x, y) {
-    const scale = 1.2;
-    ctx.fillStyle = '#2d5a27'; ctx.fillRect(x - 12 * scale, y - 120 * scale, 24 * scale, 110 * scale);
-    ctx.fillStyle = '#50fa7b'; ctx.fillRect(x - 14 * scale, y - 40 * scale, 28 * scale, 4 * scale);
-    ctx.fillStyle = '#e8f5e9'; ctx.beginPath(); ctx.arc(x, y - 105 * scale, 10 * scale, 0, Math.PI * 2); ctx.fill();
+    // Reloj Público de Pucallpa
+    const scale = 1.3;
+
+    // Base ancha
+    ctx.fillStyle = '#f5f5f5'; // Blanco hueso
+    ctx.fillRect(x - 25 * scale, y - 20 * scale, 50 * scale, 30 * scale);
+    ctx.fillStyle = '#e0e0e0'; // Sombra base
+    ctx.fillRect(x - 20 * scale, y - 20 * scale, 40 * scale, 30 * scale);
+
+    // Torre principal (Alta y blanca)
+    ctx.fillStyle = '#ffffff'; // Blanco puro
+    ctx.fillRect(x - 15 * scale, y - 140 * scale, 30 * scale, 120 * scale);
+
+    // Líneas arquitectónicas (Ribetes)
+    ctx.fillStyle = '#b0bec5'; // Gris azulado
+    ctx.fillRect(x - 18 * scale, y - 140 * scale, 36 * scale, 5 * scale); // Cornisa superior
+    ctx.fillRect(x - 18 * scale, y - 80 * scale, 36 * scale, 5 * scale); // Cornisa media
+    ctx.fillRect(x - 18 * scale, y - 25 * scale, 36 * scale, 5 * scale); // Cornisa base
+
+    // Reloj (Esfera)
+    ctx.fillStyle = '#263238'; // Marco negro
+    ctx.beginPath(); ctx.arc(x, y - 110 * scale, 14 * scale, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffffff'; // Esfera interior blanca
+    ctx.beginPath(); ctx.arc(x, y - 110 * scale, 12 * scale, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ff5722'; // Punto central naranja
+    ctx.beginPath(); ctx.arc(x, y - 110 * scale, 2 * scale, 0, Math.PI * 2); ctx.fill();
+
+    // Manecillas
+    ctx.strokeStyle = '#212121';
+    ctx.lineWidth = 2 * scale;
+    ctx.beginPath(); ctx.moveTo(x, y - 110 * scale); ctx.lineTo(x, y - 118 * scale); ctx.stroke(); // Minutero
+    ctx.lineWidth = 3 * scale;
+    ctx.beginPath(); ctx.moveTo(x, y - 110 * scale); ctx.lineTo(x + 6 * scale, y - 110 * scale); ctx.stroke(); // Horario
+
+    // Cúpula superior (Techo azulino clásico)
+    ctx.fillStyle = '#0277bd';
+    ctx.beginPath();
+    ctx.moveTo(x - 15 * scale, y - 140 * scale);
+    ctx.lineTo(x + 15 * scale, y - 140 * scale);
+    ctx.lineTo(x, y - 165 * scale);
+    ctx.fill();
+
+    // Veleta / Antena
+    ctx.strokeStyle = '#607d8b';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x, y - 165 * scale); ctx.lineTo(x, y - 180 * scale); ctx.stroke();
+    // Bolita arriba
+    ctx.fillStyle = '#ffc107';
+    ctx.beginPath(); ctx.arc(x, y - 180 * scale, 3 * scale, 0, Math.PI * 2); ctx.fill();
 }
 
 function drawMarketStall(x, y, color, title) {
-    ctx.fillStyle = '#5d4037'; ctx.fillRect(x - 30, y - 10, 60, 20);
-    ctx.fillStyle = color; ctx.fillRect(x - 35, y - 55, 70, 15);
-    ctx.fillStyle = 'white'; ctx.font = 'bold 10px Fredoka'; ctx.textAlign = 'center'; ctx.fillText(title, x, y - 65);
+    // Portal / Arco de Ingreso a la categoría
+    // Suelo místico brillante (Tapete de entrada)
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.3;
+    ctx.beginPath(); ctx.ellipse(x, y + 10, 50, 20, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 0.6;
+    ctx.beginPath(); ctx.ellipse(x, y + 10, 35, 12, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1.0;
+
+    // Pilares rústicos
+    ctx.fillStyle = '#4e342e';
+    ctx.fillRect(x - 35, y - 40, 12, 50); // Pilar Izquierdo
+    ctx.fillRect(x + 23, y - 40, 12, 50); // Pilar Derecho
+
+    // Bases de piedra
+    ctx.fillStyle = '#3e2723';
+    ctx.fillRect(x - 40, y + 5, 22, 10);
+    ctx.fillRect(x + 18, y + 5, 22, 10);
+
+    // Viga superior brillante (Color de Categoría)
+    ctx.fillStyle = color;
+    ctx.fillRect(x - 45, y - 55, 90, 20);
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(x - 45, y - 35, 90, 4); // Sombra debajo de la viga
+
+    // Texto de la categoría
+    ctx.fillStyle = '#282a36'; // Texto oscuro contrastante
+    ctx.font = '900 11px Fredoka';
+    ctx.textAlign = 'center';
+    ctx.fillText(title, x, y - 42);
 }
 
 function drawBeachUmbrella(x, y, color) {
@@ -599,11 +806,11 @@ function draw() {
 
     for (let i = 0; i < 40; i++) {
         const tx = Math.abs(Math.sin(i * 123)) * WORLD_SIZE, ty = Math.abs(Math.cos(i * 456)) * WORLD_SIZE;
-        if (getDist(tx, ty, WORLD_SIZE / 2, WORLD_SIZE / 2) > 150) drawPalmTree(tx, ty, 0.8);
+        if (getDist(tx, ty, WORLD_SIZE / 2, WORLD_SIZE / 2) > 150 && tx < 1050) drawPalmTree(tx, ty, 0.8);
     }
     for (let i = 0; i < 45; i++) {
         const bx = Math.abs(Math.sin(i * 789)) * WORLD_SIZE, by = Math.abs(Math.cos(i * 321)) * WORLD_SIZE;
-        if (getDist(bx, by, WORLD_SIZE / 2, WORLD_SIZE / 2) > 150) drawTropicalBush(bx, by);
+        if (getDist(bx, by, WORLD_SIZE / 2, WORLD_SIZE / 2) > 150 && bx < 1050) drawTropicalBush(bx, by);
     }
 
     drawMarketStall(WORLD_SIZE / 2 - 200, WORLD_SIZE / 2 - 120, '#ff9800', "MURO DE PLANES");
@@ -614,7 +821,21 @@ function draw() {
         let p = players[id];
         const isMov = p.lastX !== p.x || p.lastY !== p.y;
         if (isMov) { p.walkTime = (p.walkTime || 0) + 0.3; p.lastX = p.x; p.lastY = p.y; } else { p.walkTime = 0; }
-        DrawCapibara(ctx, p.x, p.y, p.color, p.walkTime, p.facingLeft, p.name, itPlayerId === id);
+
+        const inBoat = p.x >= 1250;
+        if (inBoat) {
+            drawPlayerBoat(ctx, p.x, p.y, p.facingLeft);
+        }
+
+        const isIT = itPlayerId === id;
+        if (p.charType === 'monito') {
+            DrawMono(ctx, p.x, p.y + (inBoat ? 5 : 0), p.color, p.walkTime, p.facingLeft, p.name, isIT, inBoat);
+        } else {
+            DrawCapibara(ctx, p.x, p.y + (inBoat ? 5 : 0), p.color, p.walkTime, p.facingLeft, p.name, isIT, inBoat);
+        }
+        
+        drawPlayerLabel(ctx, p);
+
         if (p.message && now - p.messageTimer < 6000) {
             ctx.fillStyle = 'white'; ctx.beginPath(); drawRoundedRect(ctx, p.x - 15, p.y - 95, 120, 35, 10); ctx.fill();
             ctx.fillStyle = '#282a36'; ctx.font = "bold 13px Fredoka"; ctx.textAlign = 'center'; ctx.fillText(p.message, p.x + 45, p.y - 75);

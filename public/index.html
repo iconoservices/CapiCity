@@ -16,6 +16,19 @@
             <h2>¡Bienvenido a la Plaza!</h2>
             <p>¿Cómo te llamas, capibara?</p>
             <input type="text" id="username-input" placeholder="Tu nombre..." maxlength="15">
+            
+            <p style="margin-top:20px; font-weight:600; color:#bd93f9;">Elige tu Personaje:</p>
+            <div id="character-selector" style="display:flex; justify-content:center; gap:20px; margin-bottom:20px;">
+                <div class="char-option active" data-char="capibara">
+                    <div class="char-preview capibara-preview">🦫</div>
+                    <span>Capibara</span>
+                </div>
+                <div class="char-option" data-char="monito">
+                    <div class="char-preview monito-preview">🐒</div>
+                    <span>Monito</span>
+                </div>
+            </div>
+
             <button id="join-btn">Entrar al juego</button>
         </div>
     </div>
@@ -40,12 +53,7 @@
             <button id="send-btn">Hablar</button>
         </div>
 
-        <!-- Banner de Planes (Tinder Style) -->
-        <div id="planes-banner">
-            <div id="plan-card-container">
-                <!-- Se llena dinámicamente -->
-            </div>
-        </div>
+        <!-- (Banner de Planes removido por ocupar mucho espacio) -->
 
         <!-- Botón Sidebar Minijuegos -->
         <button id="games-sidebar-btn">🎮</button>
