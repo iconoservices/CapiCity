@@ -310,34 +310,39 @@ function abrirApp(app) {
     }
 }
 
-// Selección de Personaje en el Login
 const charOptions = document.querySelectorAll('.char-option');
 charOptions.forEach(opt => {
     opt.addEventListener('click', () => {
         charOptions.forEach(o => o.classList.remove('active'));
         opt.classList.add('active');
         selectedChar = opt.getAttribute('data-char');
+        console.log("Personaje seleccionado:", selectedChar);
     });
 });
 
-if (document.getElementById('join-btn')) {
-    document.getElementById('join-btn').addEventListener('click', () => {
-        const nameInput = document.getElementById('username-input');
-        playerName = nameInput.value.trim() || 'Capibara Anónimo';
-        document.getElementById('login-overlay').style.display = 'none';
-        document.getElementById('ui-overlay').style.display = 'flex';
-        socket.emit('joinGame', { name: playerName, charType: selectedChar });
-    });
+function unirJuego() {
+    const nameInput = document.getElementById('username-input');
+    playerName = nameInput.value.trim() || 'Capibara Anónimo';
+    document.getElementById('login-overlay').style.display = 'none';
+    document.getElementById('ui-overlay').style.display = 'flex';
+    socket.emit('joinGame', { name: playerName, charType: selectedChar });
 }
+
+if (document.getElementById('join-btn')) {
+    document.getElementById('join-btn').addEventListener('click', unirJuego);
+}
+
+document.getElementById('username-input').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') unirJuego();
+});
 
 // EVENTOS MULTIJUGADOR
 socket.on('currentPlayers', (serverPlayers) => { players = serverPlayers; });
 socket.on('newPlayer', (playerInfo) => { players[playerInfo.id] = playerInfo; });
 socket.on('playerMoved', (playerInfo) => {
     if (players[playerInfo.id]) {
-        players[playerInfo.id].x = playerInfo.x;
-        players[playerInfo.id].y = playerInfo.y;
-        players[playerInfo.id].facingLeft = playerInfo.facingLeft;
+        // Actualizar todo el objeto para incluir charType, nombre, etc.
+        players[playerInfo.id] = playerInfo;
     }
 });
 socket.on('disconnectPlayer', (playerId) => { delete players[playerId]; });

@@ -11,20 +11,24 @@ app.use(express.static(path.join(__dirname, 'public')));
 const players = {};
 let itPlayerId = null; // Quien "la trae" en las agarradas
 
+// Simulación de planes y encuestas (en memoria para este ejemplo)
+let plans = [];
+let activePolls = [];
+
 io.on('connection', (socket) => {
-    console.log('Un nuevo socket conectado. Esperando nombre...', socket.id);
+    console.log('Un nuevo socket conectado:', socket.id);
 
     // Guardamos al jugador pero no avisamos a nadie hasta que envíe su nombre
     players[socket.id] = {
-        x: Math.random() * 100 + 700, // Posición central (Cerca del reloj)
+        x: Math.random() * 100 + 700, // Posición central
         y: Math.random() * 100 + 700,
-        color: `hsl(${Math.random() * 360}, 70%, 50%)`, // Color pseudo-aleatorio
+        color: `hsl(${Math.random() * 360}, 70%, 50%)`,
         id: socket.id,
         name: "Nuevo",
         charType: "capibara", // Por defecto
         message: '',
         messageTimer: 0,
-        facingLeft: false // Dirección de la mirada
+        facingLeft: false
     };
 
     socket.on('joinGame', (data) => {
@@ -34,20 +38,13 @@ io.on('connection', (socket) => {
         players[socket.id].name = name || "Anónimo";
         players[socket.id].charType = charType;
 
-        // Si nadie la trae, este jugador es el elegido
-        if (!itPlayerId) {
-            itPlayerId = socket.id;
-        }
+        if (!itPlayerId) itPlayerId = socket.id;
 
-        // Enviar a este cliente todos los jugadores actuales
         socket.emit('currentPlayers', players);
-        socket.emit('itUpdate', itPlayerId); // Avisar quién la trae
-
-        // Avisar a todos los demás clientes sobre el nuevo capibara
+        socket.emit('itUpdate', itPlayerId);
         socket.broadcast.emit('newPlayer', players[socket.id]);
     });
 
-    // --- Lógica de Las Agarradas ---
     socket.on('tagPlayer', (targetId) => {
         if (socket.id === itPlayerId && players[targetId]) {
             itPlayerId = targetId;
@@ -59,28 +56,37 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Cuando un jugador se mueve
-    socket.on('playerMovement', (movementData) => {
+    socket.on('playerMove', (movementData) => {
         if (players[socket.id]) {
             players[socket.id].x = movementData.x;
             players[socket.id].y = movementData.y;
             players[socket.id].facingLeft = movementData.facingLeft;
-            // Enviar la nueva posición a todos los demás capibaras
             socket.broadcast.emit('playerMoved', players[socket.id]);
         }
     });
 
-    // Cuando un jugador envía un mensaje de chat
     socket.on('chatMessage', (msg) => {
         if (players[socket.id]) {
             players[socket.id].message = msg;
-            // Enviar a todos para que la burbuja flote sobre el capibara
+            players[socket.id].messageTimer = Date.now();
             io.emit('playerChat', { id: socket.id, message: msg });
         }
     });
 
-    // --- Lógica de Planes ---
+    socket.on('disconnect', () => {
+        console.log('Jugador desconectado:', socket.id);
+        if (socket.id === itPlayerId) {
+            const nextId = Object.keys(players).find(id => id !== socket.id);
+            itPlayerId = nextId || null;
+            io.emit('itUpdate', itPlayerId);
+        }
+        delete players[socket.id];
+        io.emit('disconnectPlayer', socket.id);
+    });
+
+    // Envío inicial de planes y encuestas
     socket.emit('currentPlans', plans);
+    socket.emit('currentPolls', activePolls);
 
     socket.on('createPlan', (planData) => {
         const newPlan = {
@@ -89,7 +95,6 @@ io.on('connection', (socket) => {
             title: planData.title,
             desc: planData.desc,
             img: planData.img || null,
-            emoji: planData.emoji || '🔥',
             time: new Date().toLocaleTimeString()
         };
         plans.unshift(newPlan);
@@ -97,57 +102,26 @@ io.on('connection', (socket) => {
         io.emit('newPlan', newPlan);
     });
 
-    // --- Lógica de Encuestas ---
-    socket.emit('currentPolls', activePolls);
-
     socket.on('createPoll', (pollData) => {
         const newPoll = {
             id: Date.now(),
-            owner: players[socket.id]?.name || 'Anónimo',
             question: pollData.question,
             options: pollData.options,
-            votes: pollData.options.map(() => 0)
+            votes: pollData.options.map(() => 0),
+            voters: [] // Para evitar votos dobles si quisiéramos
         };
         activePolls.unshift(newPoll);
-        if (activePolls.length > 10) activePolls.pop();
         io.emit('newPoll', newPoll);
     });
 
-    socket.on('votePoll', (data) => {
-        const poll = activePolls.find(p => p.id === data.pollId);
-        if (poll && poll.votes[data.optionIndex] !== undefined) {
-            poll.votes[data.optionIndex]++;
+    socket.on('votePoll', (voteData) => {
+        const poll = activePolls.find(p => p.id === voteData.pollId);
+        if (poll && poll.votes[voteData.optionIndex] !== undefined) {
+            poll.votes[voteData.optionIndex]++;
             io.emit('updatePolls', activePolls);
         }
     });
-
-    // Cuando un capibara se desconecta
-    socket.on('disconnect', () => {
-        console.log('Un capibara se fue de la plaza:', socket.id);
-
-        // Si el que se fue traía las agarradas, pasarlas a otro
-        if (itPlayerId === socket.id) {
-            delete players[socket.id];
-            const remainingIds = Object.keys(players);
-            itPlayerId = remainingIds.length > 0 ? remainingIds[0] : null;
-            io.emit('itUpdate', itPlayerId);
-        } else {
-            delete players[socket.id];
-        }
-
-        // Avisar a todos para borrar este capibara de sus pantallas
-        io.emit('disconnectPlayer', socket.id);
-    });
 });
-
-const plans = [
-    { id: 1, owner: 'Admin', title: 'Voley en la Plaza', desc: 'Mañana a las 5pm en la plaza de armas. ¡Faltan 2!', emoji: '🏐' },
-    { id: 2, owner: 'Admin', title: 'Ceviche en el Puerto', desc: 'Saliendo de clase vamos por un cebichito. ¿Quién se une?', emoji: '🐟' }
-];
-
-const activePolls = [
-    { id: 1, owner: 'Admin', question: '¿Qué se cena hoy? 🍴', options: ['Tacacho con Cecina', 'Juane Especial'], votes: [12, 10] }
-];
 
 const PORT = process.env.PORT || 3000;
 http.listen(PORT, () => {
