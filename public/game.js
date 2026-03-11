@@ -30,7 +30,8 @@ const keys = {
     a: false,
     s: false,
     d: false,
-    e: false
+    e: false,
+    ' ': false
 };
 
 const fireflies = [];
@@ -65,6 +66,12 @@ let plansQueue = [];
 let activePolls = [];
 let itPlayerId = null; // Quien "la trae" en las agarradas
 let lastTagTime = 0; // Cooldown para no re-agarrar instantáneo
+
+// --- LÓGICA DE HABILIDAD (BOOST) ---
+let lastBoostTime = 0;
+const BOOST_COOLDOWN = 8000; // 8 segundos
+const BOOST_DURATION = 2000; // 2 segundos
+let isBoosting = false;
 
 // Escuchar teclas presionadas
 window.addEventListener('keydown', (e) => {
@@ -323,8 +330,8 @@ charOptions.forEach(opt => {
 function unirJuego() {
     const nameInput = document.getElementById('username-input');
     playerName = nameInput.value.trim() || 'Capibara Anónimo';
-    document.getElementById('login-overlay').style.display = 'none';
     document.getElementById('ui-overlay').style.display = 'flex';
+    document.getElementById('boost-container').style.display = 'block';
     socket.emit('joinGame', { name: playerName, charType: selectedChar });
 }
 
@@ -353,18 +360,54 @@ socket.on('playerChat', (data) => {
     }
 });
 
-// --- LÓGICA DE MOVIMIENTO Y CÁMARA ---
 function updateMovement() {
     if (!players[socket.id]) return;
     let moved = false;
     let me = players[socket.id];
-
     let oldX = me.x;
 
-    if (keys.ArrowLeft || keys.a) { me.x -= speed; moved = true; me.facingLeft = true; }
-    if (keys.ArrowRight || keys.d) { me.x += speed; moved = true; me.facingLeft = false; }
-    if (keys.ArrowUp || keys.w) { me.y -= speed; moved = true; }
-    if (keys.ArrowDown || keys.s) { me.y += speed; moved = true; }
+    let speedMultiplier = 1;
+    const now = Date.now();
+
+    // Lógica de Boost
+    if (keys[' '] && now - lastBoostTime > BOOST_COOLDOWN) {
+        lastBoostTime = now;
+        isBoosting = true;
+        spawnParticles(me.x + 25, me.y + 20, '#ff9800', 30);
+    }
+
+    if (isBoosting) {
+        if (now - lastBoostTime < BOOST_DURATION) {
+            speedMultiplier = 2.2; // ¡Súper velocidad!
+            spawnParticles(me.x + 25, me.y + 20, '#ffeb3b', 2);
+        } else {
+            isBoosting = false;
+        }
+    }
+
+    // Actualizar barra de boost visual
+    const boostElapsed = now - lastBoostTime;
+    const boostBar = document.getElementById('boost-bar');
+    const boostText = document.getElementById('boost-text');
+    if (boostBar) {
+        if (boostElapsed < BOOST_COOLDOWN) {
+            const perc = (boostElapsed / BOOST_COOLDOWN) * 100;
+            boostBar.style.width = perc + "%";
+            boostBar.style.background = "#555";
+            if (boostText) boostText.innerText = "CARGANDO...";
+        } else {
+            boostBar.style.width = "100%";
+            boostBar.style.background = "linear-gradient(90deg, #ff9800, #ffeb3b)";
+            if (boostText) boostText.innerText = "¡LISTO! (ESPACIO)";
+        }
+    }
+
+    const currentSpeed = speed * speedMultiplier;
+
+    if (keys.ArrowLeft || keys.a) { me.x -= currentSpeed; moved = true; me.facingLeft = true; }
+    if (keys.ArrowRight || keys.d) { me.x += currentSpeed; moved = true; me.facingLeft = false; }
+    if (keys.ArrowUp || keys.w) { me.y -= currentSpeed; moved = true; }
+    if (keys.ArrowDown || keys.s) { me.y += currentSpeed; moved = true; }
 
     me.y = Math.max(0, Math.min(WORLD_SIZE - 50, me.y));
 
@@ -555,9 +598,49 @@ function drawPlayerLabel(ctx, p) {
     ctx.fillStyle = 'white'; ctx.font = 'bold 12px Fredoka'; ctx.textAlign = 'center';
     ctx.shadowBlur = 4; ctx.shadowColor = 'black';
     const cleanName = (typeof p.name === 'string') ? p.name : (p.name?.name || "Anónimo");
-    const label = p.charType === 'monito' ? '🐒 ' + cleanName : '🦫 ' + cleanName;
+    const label = p.charType === 'monito' ? '🐒 ' + cleanName : (p.charType === 'delfin' ? '🐬 ' + cleanName : '🦫 ' + cleanName);
     ctx.fillText(label, p.x + 25, p.y - 48);
     ctx.shadowBlur = 0;
+}
+
+function DrawDelfin(ctx, x, y, color, walkTime, facingLeft, name, isIT, inBoat = false) {
+    const isMoving = walkTime > 0;
+    const bounce = isMoving ? Math.abs(Math.sin(walkTime * 8)) * 4 : Math.sin(Date.now() * 0.003) * 2;
+    const breathe = Math.sin(Date.now() * 0.002) * 1.5;
+    
+    ctx.save();
+    ctx.translate(x + 25, y + 20);
+    
+    if (isIT) {
+        const glow = Math.sin(Date.now() * 0.01) * 15 + 15;
+        ctx.shadowBlur = glow; ctx.shadowColor = '#ff5555';
+        ctx.strokeStyle = '#ff5555'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.ellipse(0, 0, 35, 20, 0, 0, Math.PI * 2); ctx.stroke();
+    }
+    
+    if (facingLeft) ctx.scale(-1, 1);
+    ctx.fillStyle = 'rgba(0,0,0,0.1)';
+    ctx.beginPath(); ctx.ellipse(0, 15, 25, 8, 0, 0, Math.PI * 2); ctx.fill();
+
+    const pinkColor = '#ff80ab'; 
+    const darkPink = '#f06292';
+
+    ctx.fillStyle = pinkColor;
+    ctx.beginPath(); ctx.ellipse(0, bounce, 30 + breathe, 18 + bounce, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(25, 5 + bounce, 15, 6, 0.1, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-5, -15 + bounce); ctx.quadraticCurveTo(-15, -25 + bounce, -25, -10 + bounce); ctx.fill();
+    ctx.fillStyle = darkPink;
+    ctx.beginPath(); ctx.ellipse(5, 8 + bounce, 12, 5, 0.5, 0, Math.PI * 2); ctx.fill();
+
+    ctx.fillStyle = '#212121';
+    const isBlinking = (Math.sin(Date.now() * 0.005) > 0.98);
+    if (!isBlinking) {
+        ctx.beginPath(); ctx.arc(15, -2 + bounce, 2.5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'white'; ctx.beginPath(); ctx.arc(16, -3 + bounce, 1, 0, Math.PI * 2); ctx.fill();
+    } else {
+        ctx.fillRect(12, -3 + bounce, 5, 2);
+    }
+    ctx.restore();
 }
 
 function drawPalmTree(x, y, scale = 1.0) {
@@ -838,6 +921,8 @@ function draw() {
         const isIT = itPlayerId === id;
         if (p.charType === 'monito') {
             DrawMono(ctx, p.x, p.y + (inBoat ? 5 : 0), p.color, p.walkTime, p.facingLeft, p.name, isIT, inBoat);
+        } else if (p.charType === 'delfin') {
+            DrawDelfin(ctx, p.x, p.y + (inBoat ? 5 : 0), p.color, p.walkTime, p.facingLeft, p.name, isIT, inBoat);
         } else {
             DrawCapibara(ctx, p.x, p.y + (inBoat ? 5 : 0), p.color, p.walkTime, p.facingLeft, p.name, isIT, inBoat);
         }
