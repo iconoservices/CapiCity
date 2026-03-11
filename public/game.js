@@ -531,12 +531,14 @@ function DrawMono(ctx, x, y, color, walkTime, facingLeft, name, isIT, inBoat = f
     ctx.fillStyle = faceColor;
     ctx.beginPath(); ctx.arc(-15, -2, 3, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath(); ctx.arc(15, -2, 3, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(0, 2, 11, 9, 0, 0, Math.PI * 2);    // Ojos
+    ctx.beginPath(); ctx.ellipse(0, 2, 11, 9, 0, 0, Math.PI * 2); ctx.fill(); // CARA DEL MONO
+    
+    // Ojos
     ctx.fillStyle = '#212121';
     const isBlinkingMono = (Math.sin(Date.now() * 0.004) > 0.97); 
     if (isBlinkingMono) {
-        ctx.fillRect(-7, -2, 6, 2); // Ojo Izq cerrado
-        ctx.fillRect(1, -2, 6, 2);  // Ojo Der cerrado
+        ctx.fillRect(-7, -2, 6, 2); 
+        ctx.fillRect(1, -2, 6, 2);  
     } else {
         ctx.beginPath(); ctx.arc(-4, -1, 2.5, 0, Math.PI * 2); ctx.fill();
         ctx.beginPath(); ctx.arc(4, -1, 2.5, 0, Math.PI * 2); ctx.fill();
@@ -552,7 +554,8 @@ function DrawMono(ctx, x, y, color, walkTime, facingLeft, name, isIT, inBoat = f
 function drawPlayerLabel(ctx, p) {
     ctx.fillStyle = 'white'; ctx.font = 'bold 12px Fredoka'; ctx.textAlign = 'center';
     ctx.shadowBlur = 4; ctx.shadowColor = 'black';
-    const label = p.charType === 'monito' ? '🐒 ' + p.name : '🦫 ' + p.name;
+    const cleanName = (typeof p.name === 'string') ? p.name : (p.name?.name || "Anónimo");
+    const label = p.charType === 'monito' ? '🐒 ' + cleanName : '🦫 ' + cleanName;
     ctx.fillText(label, p.x + 25, p.y - 48);
     ctx.shadowBlur = 0;
 }

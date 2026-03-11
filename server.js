@@ -35,8 +35,11 @@ io.on('connection', (socket) => {
         const name = typeof data === 'string' ? data : data.name;
         const charType = data.charType || "capibara";
 
-        players[socket.id].name = name || "Anónimo";
+        const nameStr = String(name || "Anónimo");
+        players[socket.id].name = nameStr;
         players[socket.id].charType = charType;
+        
+        console.log(`🎮 Jugador se unió: ${nameStr} como ${charType}`);
 
         if (!itPlayerId) itPlayerId = socket.id;
 
