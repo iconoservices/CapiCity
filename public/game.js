@@ -408,10 +408,12 @@ function updateMovement() {
         }
     }
 
-    // Velocidad base según personaje (¡El motelo es lento!)
+    // Velocidad base según personaje
     let baseSpeed = speed;
     if (me.charType === 'motelo') {
-        baseSpeed = speed * 0.45; // 45% de la velocidad normal
+        baseSpeed = speed * 0.35; // 35% de la velocidad normal ¡Aún más lento!
+    } else if (me.charType === 'bufeo' || me.charType === 'delfin') {
+        baseSpeed = speed * 0.80; // 80% de la velocidad para el Bufeo
     }
 
     const currentSpeed = baseSpeed * speedMultiplier;
@@ -612,14 +614,14 @@ function drawPlayerLabel(ctx, p) {
     const cleanName = (typeof p.name === 'string') ? p.name : (p.name?.name || "Anónimo");
     let emoji = '🦫 ';
     if (p.charType === 'monito') emoji = '🐒 ';
-    if (p.charType === 'delfin') emoji = '🐬 ';
+    if (p.charType === 'bufeo' || p.charType === 'delfin') emoji = '🐬 ';
     if (p.charType === 'motelo') emoji = '🐢 ';
     const label = emoji + cleanName;
     ctx.fillText(label, p.x + 25, p.y - 48);
     ctx.shadowBlur = 0;
 }
 
-function DrawDelfin(ctx, x, y, color, walkTime, facingLeft, name, isIT, inBoat = false) {
+function DrawBufeo(ctx, x, y, color, walkTime, facingLeft, name, isIT, inBoat = false) {
     const isMoving = walkTime > 0;
     // Movimiento ondulado como pez, sin saltos bruscos
     const bounce = isMoving ? Math.sin(walkTime * 5) * 3 : Math.sin(Date.now() * 0.003) * 2;
@@ -1036,8 +1038,8 @@ function draw() {
         const isIT = itPlayerId === id;
         if (p.charType === 'monito') {
             DrawMono(ctx, p.x, p.y + (inBoat ? 5 : 0), p.color, p.walkTime, p.facingLeft, p.name, isIT, inBoat);
-        } else if (p.charType === 'delfin') {
-            DrawDelfin(ctx, p.x, p.y + (inBoat ? 5 : 0), p.color, p.walkTime, p.facingLeft, p.name, isIT, inBoat);
+        } else if (p.charType === 'bufeo' || p.charType === 'delfin') {
+            DrawBufeo(ctx, p.x, p.y + (inBoat ? 5 : 0), p.color, p.walkTime, p.facingLeft, p.name, isIT, inBoat);
         } else if (p.charType === 'motelo') {
             DrawMotelo(ctx, p.x, p.y + (inBoat ? 5 : 0), p.color, p.walkTime, p.facingLeft, p.name, isIT);
         } else {
